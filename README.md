@@ -111,8 +111,8 @@ with the phone, over the local network:
 4. Browsing in Safari and in apps that honour the Wi‑Fi proxy now leaves
    through the VPN exit. Set the proxy back to **Off** when you disconnect.
 
-*The address and the steps can be copied with one click in
-*Settings → Share with a phone → Address and steps**, which also exports a
+The address and the steps can be copied with one click in
+*Settings → Share with a phone → Address and steps*, which also exports a
 `.mobileconfig` for supervised devices (Apple Configurator / MDM). Apple only
 applies that profile when the device is supervised, so on a personal iPhone
 step 3 above is the supported path. Both are HTTP-proxy based; only traffic
