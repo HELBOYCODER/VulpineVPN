@@ -42,6 +42,14 @@ class SettingsStore(context: Context) {
         get() = prefs.getInt(KEY_SOCKS_PORT, DEFAULT_SOCKS_PORT)
         set(value) { prefs.edit().putInt(KEY_SOCKS_PORT, value.coerceIn(1, 65_535)).apply() }
 
+    var iosShareEnabled: Boolean
+        get() = prefs.getBoolean(KEY_IOS_SHARE_ENABLED, false)
+        set(value) { prefs.edit().putBoolean(KEY_IOS_SHARE_ENABLED, value).apply() }
+
+    var iosSharePort: Int
+        get() = prefs.getInt(KEY_IOS_SHARE_PORT, DEFAULT_IOS_SHARE_PORT)
+        set(value) { prefs.edit().putInt(KEY_IOS_SHARE_PORT, value.coerceIn(1, 65_535)).apply() }
+
     var dohProvider: DohProvider
         get() = DohProvider.entries.firstOrNull {
             it.name == prefs.getString(KEY_DOH_PROVIDER, null)
@@ -171,6 +179,8 @@ class SettingsStore(context: Context) {
         private const val KEY_EXIT_CHECK = "exit_check_enabled"
         private const val KEY_SOCKS_BIND_ADDRESS = "socks_bind_address"
         private const val KEY_SOCKS_PORT = "socks_port"
+        private const val KEY_IOS_SHARE_ENABLED = "ios_share_enabled"
+        private const val KEY_IOS_SHARE_PORT = "ios_share_port"
         private const val KEY_DOH_PROVIDER = "doh_provider"
         private const val KEY_CUSTOM_DNS_ENABLED = "custom_dns_enabled"
         private const val KEY_CUSTOM_DNS_SERVER = "custom_dns_server"
@@ -186,6 +196,7 @@ class SettingsStore(context: Context) {
         private const val KEY_EXCLUDED_APPS = "excluded_apps"
         const val DEFAULT_SOCKS_BIND_ADDRESS = "127.0.0.1"
         const val DEFAULT_SOCKS_PORT = 1080
+        const val DEFAULT_IOS_SHARE_PORT = 1081
         const val DEFAULT_UPSTREAM_PROXY_PORT = 1080
         const val DEFAULT_CUSTOM_DNS_SERVER = "1.1.1.1"
 

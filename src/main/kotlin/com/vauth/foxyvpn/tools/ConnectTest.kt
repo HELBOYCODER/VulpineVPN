@@ -16,6 +16,9 @@ fun main() {
         println("NO_SESSION — sign in through the app first")
         return
     }
+    val shareWasEnabled = app.settingsStore.iosShareEnabled
+    val sharePort = app.settingsStore.iosSharePort
+    app.settingsStore.iosShareEnabled = true
     FoxyVpnService.start(app)
     var waited = 0
     while (FoxyVpnService.state.value == ConnectionState.CONNECTING && waited < 45) {
@@ -35,10 +38,20 @@ fun main() {
         println("EXIT_VIA_SOCKS=$viaSocks")
         println("EXIT_DIRECT(during proxy-on)=$direct")
 
+        val httpsViaShare = runProcess(
+            "curl", "-s", "--max-time", "15", "-x", "http://127.0.0.1:$sharePort", "https://api.ipify.org",
+        )
+        val httpViaShare = runProcess(
+            "curl", "-s", "--max-time", "15", "-x", "http://127.0.0.1:$sharePort", "http://example.com/",
+        ).lineSequence().firstOrNull { it.isNotBlank() }.orEmpty().take(60)
+        println("EXIT_VIA_SHARE_HTTPS=$httpsViaShare")
+        println("BODY_VIA_SHARE_HTTP=$httpViaShare")
+
         Thread.sleep(2_000)
         FoxyVpnService.stop(app)
         Thread.sleep(4_000)
     }
+    app.settingsStore.iosShareEnabled = shareWasEnabled
     MacHelper.releaseSystem()
     println("STATE_AFTER_STOP=${FoxyVpnService.state.value}")
     println("PROXY_AFTER_STOP=" + runProcess("sh", "-c", "scutil --proxy | grep SOCKSEnabled || echo none"))

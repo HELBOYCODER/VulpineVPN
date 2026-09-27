@@ -86,6 +86,13 @@ fun SettingsScreen(
     var showCustomDnsDialog by remember { mutableStateOf(false) }
     var showSocksBindDialog by remember { mutableStateOf(false) }
     var showSocksPortDialog by remember { mutableStateOf(false) }
+    var showIosShareDialog by remember { mutableStateOf(false) }
+    var showIosPortDialog by remember { mutableStateOf(false) }
+    var iosShareEnabled by remember { mutableStateOf(settingsStore.iosShareEnabled) }
+    var iosSharePort by remember { mutableStateOf(settingsStore.iosSharePort) }
+    val lanEndpoint = remember(showIosShareDialog, iosSharePort, iosShareEnabled) {
+        com.vauth.foxyvpn.vpn.http.firstLanEndpoint()
+    }
     var showEdgeAddressDialog by remember { mutableStateOf(false) }
     var showUpstreamProxyTypeDialog by remember { mutableStateOf(false) }
     var showUpstreamProxyAddressDialog by remember { mutableStateOf(false) }
@@ -134,6 +141,25 @@ fun SettingsScreen(
                 settingsStore.socksPort = it
                 showSocksPortDialog = false
             },
+        )
+    }
+    if (showIosPortDialog) {
+        SocksPortPickerDialog(
+            current = iosSharePort,
+            onDismiss = { showIosPortDialog = false },
+            onConfirm = {
+                iosSharePort = it
+                settingsStore.iosSharePort = it
+                showIosPortDialog = false
+            },
+        )
+    }
+    if (showIosShareDialog) {
+        IosShareDialog(
+            lanAddress = lanEndpoint?.address,
+            interfaceName = lanEndpoint?.name,
+            port = iosSharePort,
+            onDismiss = { showIosShareDialog = false },
         )
     }
     if (showEdgeAddressDialog) {
@@ -321,6 +347,50 @@ fun SettingsScreen(
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                 modifier = Modifier.clickable { showSocksPortDialog = true },
             )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionLabel("Share with a phone")
+            ListItem(
+                headlineContent = { Text("iOS / laptop proxy") },
+                supportingContent = {
+                    Text(
+                        if (iosShareEnabled) {
+                            val address = lanEndpoint?.address
+                            if (address == null) {
+                                "Waiting for a local-network address on this Mac"
+                            } else {
+                                "Devices on this network can use the VPN over HTTP at $address:$iosSharePort"
+                            }
+                        } else {
+                            "Publish an HTTP proxy on the local network so an iPhone can use this VPN"
+                        },
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = iosShareEnabled,
+                        onCheckedChange = {
+                            iosShareEnabled = it
+                            settingsStore.iosShareEnabled = it
+                            com.vauth.foxyvpn.vpn.FoxyVpnService.applyIosShare(it)
+                        },
+                    )
+                },
+            )
+            if (iosShareEnabled) {
+                ListItem(
+                    headlineContent = { Text("Address and steps") },
+                    supportingContent = { Text("How to point an iPhone at this Mac") },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    modifier = Modifier.clickable { showIosShareDialog = true },
+                )
+                ListItem(
+                    headlineContent = { Text("Share port") },
+                    supportingContent = { Text(iosSharePort.toString()) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                    modifier = Modifier.clickable { showIosPortDialog = true },
+                )
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionLabel("Split tunneling")
@@ -661,6 +731,7 @@ private fun SocksBindAddressPickerDialog(
 @Composable
 private fun SocksPortPickerDialog(
     current: Int,
+    title: String = "Local port",
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
 ) {
@@ -670,7 +741,7 @@ private fun SocksPortPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Local port") },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = portText,
@@ -686,6 +757,103 @@ private fun SocksPortPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
+        },
+    )
+}
+
+@Composable
+private fun IosShareDialog(
+    lanAddress: String?,
+    interfaceName: String?,
+    port: Int,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val steps = lanAddress?.let { com.vauth.foxyvpn.vpn.http.IosProfile.manualSteps(it, port) }
+        ?: "No local-network address was found. Connect this Mac to Wi-Fi or Ethernet first."
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Use the VPN on an iPhone") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                if (lanAddress != null) {
+                    Text(
+                        "Server: $lanAddress",
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        "Port: $port",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    interfaceName?.let {
+                        Text(
+                            "($it; the Mac and the phone must be on the same network)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                }
+                Text(steps, style = MaterialTheme.typography.bodyMedium)
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Text(
+                    "A .mobileconfig can also be exported for this proxy, but Apple only applies " +
+                        "that payload on supervised devices; on a personal iPhone the manual steps " +
+                        "above are the supported way. Either way the proxy only works while this " +
+                        "Mac stays awake and Vulpine stays connected.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(
+                    onClick = {
+                        com.vauth.foxyvpn.platform.Platform.copyText("$lanAddress:$port")
+                        android.widget.Toast.makeText(context, "Address copied", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    enabled = lanAddress != null,
+                ) { Text("Copy address") }
+                TextButton(
+                    onClick = {
+                        com.vauth.foxyvpn.platform.Platform.copyText(steps)
+                        android.widget.Toast.makeText(context, "Steps copied", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    enabled = lanAddress != null,
+                ) { Text("Copy steps") }
+                TextButton(
+                    onClick = {
+                        val server = lanAddress
+                        if (server == null) {
+                            android.widget.Toast.makeText(context, "No local address", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            runCatching {
+                                com.vauth.foxyvpn.vpn.http.IosProfile.writeFile(
+                                    server,
+                                    port,
+                                    com.vauth.foxyvpn.vpn.http.hostName(),
+                                )
+                            }.onSuccess { file ->
+                                com.vauth.foxyvpn.platform.Platform.revealInFinder(file)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Profile saved to Downloads",
+                                    android.widget.Toast.LENGTH_SHORT,
+                                ).show()
+                            }.onFailure {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Could not write the profile: ${it.message}",
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                            }
+                        }
+                    },
+                ) { Text("Export .mobileconfig") }
+                TextButton(onClick = onDismiss) { Text("Close") }
+            }
         },
     )
 }

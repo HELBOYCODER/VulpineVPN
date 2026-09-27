@@ -71,7 +71,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Exe, TargetFormat.Msi)
             packageName = "VulpineVPN"
-            packageVersion = "1.3.0"
+            packageVersion = "1.4.0"
             vendor = "vauth"
             description = "Vulpine VPN - unofficial Firefox VPN client for macOS and Windows"
             appResourcesRootDir = project.layout.projectDirectory.dir("app-resources")

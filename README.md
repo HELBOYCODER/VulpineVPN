@@ -11,6 +11,7 @@ Compose Multiplatform و همان رابط Material 3 نسخهٔ اندروید.
 
 ![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon-000000?style=for-the-badge&logo=apple&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-x64-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![iPhone](https://img.shields.io/badge/iPhone-share_over_LAN-14213D?style=for-the-badge&logo=apple&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Compose%20Multiplatform-1.9-4285F4?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
@@ -36,6 +37,8 @@ Fastly edge over an HTTP/2 tunnel — the same engine as the Android app
 - Firefox Account sign-in (email + password, Hawk/OAuth — same as Android)
 - Server/location picker with latency measurement
 - Two traffic modes: **Proxy-only** (local SOCKS5) and **System proxy**
+- **Share with a phone** — publish the tunnel as an HTTP proxy on the local
+  network so an iPhone/iPad (or any other device) can use this VPN
 - Private DNS by default + DNS-over-HTTPS options
 - Upstream proxy chaining (chain behind another SOCKS5/HTTP proxy)
 - Exit verification, in-app logs, dark/light/system theme
@@ -93,6 +96,33 @@ Fastly edge over an HTTP/2 tunnel — the same engine as the Android app
 > Telegram: *Settings → Connection → Proxy → Add proxy → SOCKS5,
 > `127.0.0.1`, port `1080`* — it works in both modes.
 
+### Use it on an iPhone or iPad
+Apple does not let a third-party app create a system-wide tunnel on iOS
+without a paid Developer account and a VPN entitlement, so there is no
+`.ipa` to sideload. Instead Vulpine shares the tunnel it already holds
+with the phone, over the local network:
+
+1. On the Mac: *Settings → Share with a phone* → switch it on. Note the
+   address shown (your Mac's Wi-Fi/Ethernet IP and port `1081`).
+2. Connect Vulpine as usual, and keep the Mac awake on the same Wi-Fi.
+3. On the iPhone: *Settings → Wi‑Fi → (i)* next to that network →
+   **HTTP Proxy → Manual**, then Server = the Mac's address,
+   Port = `1081`, Authentication off.
+4. Browsing in Safari and in apps that honour the Wi‑Fi proxy now leaves
+   through the VPN exit. Set the proxy back to **Off** when you disconnect.
+
+*The address and the steps can be copied with one click in
+*Settings → Share with a phone → Address and steps**, which also exports a
+`.mobileconfig` for supervised devices (Apple Configurator / MDM). Apple only
+applies that profile when the device is supervised, so on a personal iPhone
+step 3 above is the supported path. Both are HTTP-proxy based; only traffic
+on the shared Wi-Fi network is carried, and cellular data is untouched.
+
+> [!NOTE]
+> macOS may ask once whether to allow incoming connections for the app
+> ( firewall prompt ). Choose **Allow**, otherwise the phone cannot reach
+> the Mac.
+
 ### Data & logs
 - Settings and tokens (values AES-256-GCM encrypted):
   `~/Library/Application Support/FoxyVPN/`
@@ -114,6 +144,8 @@ sudo rm /Library/LaunchDaemons/com.vauth.foxyvpn.helper.plist
 | Old icon stuck in Dock | `killall Dock` |
 | Quota exhausted | Mozilla's 50 GB resets monthly; try again after reset |
 | Another VPN behaves oddly after disconnect | The helper restores the proxy on disconnect; fully quit and relaunch the app if needed |
+| iPhone cannot reach the shared proxy | Both devices must be on the same Wi-Fi, the Mac must stay awake and connected, and the macOS firewall must **Allow** incoming connections for the app; `curl -x http://<mac-ip>:1081 https://ipify.org` from another machine proves the path |
+| `.mobileconfig` installs but nothing changes on iOS | Apple applies the global HTTP proxy payload only on supervised devices; on a personal iPhone set *Settings → Wi‑Fi → (i) → HTTP Proxy → Manual* instead |
 
 ### Building from source
 ```bash
@@ -138,6 +170,13 @@ stored session, checks the system proxy and exit IP, then restores).
 - The VPN engine (local SOCKS5 server, Netty HTTP/2 tunnel to the Fastly
   edge, Guardian proxy-pass renewal, edge failover, watchdog) is the
   original JVM code, reused as-is.
+- `vpn/http/LocalHttpProxyServer.kt` — an HTTP proxy (CONNECT plus
+  absolute-URI forwarding) published on the local network for devices that
+  cannot use SOCKS, iPhone first among them. It carries its flows through the
+  *same* `UpstreamSession` as the SOCKS5 server, so a phone leaves by the same
+  exit as the Mac. `vpn/http/IosProfile.kt` writes the matching
+  `.mobileconfig`, and `vpn/http/LanAddress.kt` finds the address a phone can
+  actually reach.
 - `vpn/tun/MacHelper.kt` — the privileged LaunchDaemon helper that toggles
   the macOS system proxy (admin approval once, then silent).
 - The engine itself always bypasses the system proxy it configures
@@ -215,6 +254,28 @@ stored session, checks the system proxy and exit IP, then restores).
 > *Settings → Connection → Proxy → Add proxy → SOCKS5 با `127.0.0.1` و
 > پورت `1080`* — در هر دو حالت کار می‌کند.
 
+### استفاده روی آیفون یا آیپد
+اپل ساخت تونل سراسری روی iOS را بدون اکانت پولی توسعه‌دهنده و entitlement
+ویژهٔ VPN اجازه نمی‌دهد، پس فایل `.ipa` برای نصب وجود ندارد. به‌جای آن،
+ولپاین تونلی که خودش برقرار کرده را روی شبکهٔ محلی با گوشی به اشتراک
+می‌گذارد:
+
+1. در مک: *تنظیمات → Share with a phone* را روشن کنید. آدرس نشان‌داده‌شده
+   (IP وای‌فای/لان مک و پورت `1081`) را یادداشت کنید.
+2. مثل همیشه به VPN وصل شوید و مک را بیدار و روی همان وای‌فای نگه دارید.
+3. در آیفون: *Settings → Wi‑Fi → (i)* کنار همان شبکه → **HTTP Proxy →
+   Manual**؛ Server = آدرس مک، Port = `1081`، Authentication خاموش.
+4. حالا سافاری و اپ‌هایی که پروکسی وای‌فای را رعایت می‌کنند از خروجی VPN
+   عبور می‌کنند. بعد از قطع اتصال، پروکسی را دوباره **Off** کنید.
+
+در *تنظیمات → Share with a phone → Address and steps* می‌توانید آدرس و
+مراحل را با یک کلیک کپی کنید؛ همان‌جا فایل `.mobileconfig` هم خروجی گرفته
+می‌شود، اما اپل آن پروفایل را فقط روی دستگاه‌های supervised (Configurator یا
+MDM) اعمال می‌کند — روی آیفون شخصی همان مرحلهٔ ۳ روش رسمی است. این مسیر
+فقط ترافیک همان شبکهٔ وای‌فای را می‌گیرد و به اینترنت دیتا کاری ندارد.
+
+> اگر مک پیام firewall داد، **Allow** را بزنید، وگرنه گوشی به مک نمی‌رسد.
+
 ### داده‌ها و لاگ‌ها
 - تنظیمات و توکن‌ها (مقادیر با AES-256-GCM رمزنگاری می‌شوند):
   `~/Library/Application Support/FoxyVPN/`
@@ -235,6 +296,8 @@ sudo rm /Library/LaunchDaemons/com.vauth.foxyvpn.helper.plist
 | پیام «System proxy needs administrator access» | پرامپت ادمین رد شده — دوباره اتصال بزنید و تأیید کنید |
 | آیکون قدیمی در Dock | `killall Dock` |
 | سقف ۵۰ گیگ تمام شده | ماهانه ریست می‌شود؛ بعد از آن دوباره امتحان کنید |
+| آیفون به پروکسی مشترک نمی‌رسد | دو دستگاه باید روی یک وای‌فای باشند، مک بیدار و متصل بماند، و در پیام firewall گزینهٔ **Allow** را بزنید؛ از یک دستگاه دیگر با `curl -x http://<mac-ip>:1081 https://ipify.org` مسیر را امتحان کنید |
+| `.mobileconfig` نصب شد ولی چیزی تغییر نکرد | اپل این پروفایل را فقط روی دستگاه supervised اعمال می‌کند؛ روی آیفون شخصی دستی *Settings → Wi‑Fi → (i) → HTTP Proxy → Manual* را پر کنید |
 
 ### بیلد از سورس
 ```bash
@@ -252,6 +315,12 @@ gradle packageDistributionForCurrentOS
   اندروید **بدون تغییر** روی دسکتاپ کامپایل شود.
 - موتور VPN (سرویس SOCKS5 لوکال، تونل HTTP/2 نتّی به لبهٔ Fastly، تمدید
   proxy-pass، جابه‌جایی edge، watchdog) همان کد JVM اصلی است.
+- `vpn/http/LocalHttpProxyServer.kt` — پروکسی HTTP روی شبکهٔ محلی برای
+  دستگاه‌هایی که SOCKS نمی‌فهمند (آیفون). جریان‌هایش را از همان
+  `UpstreamSession` سرویس SOCKS5 رد می‌کند، پس خروجی گوشی با خروجی مک یکی
+  است. `vpn/http/IosProfile.kt` فایل `.mobileconfig` را می‌سازد و
+  `vpn/http/LanAddress.kt` آدرسی را پیدا می‌کند که گوشی واقعاً می‌تواند به آن
+  برسد.
 - `vpn/tun/MacHelper.kt` — هلپر LaunchDaemon فقط پروکسی سیستمی را روشن/خاموش
   می‌کند (یک‌بار اجازهٔ ادمین، بعد بی‌صدا).
 - خودِ موتور هرگز پروکسی سیستمی‌ای که می‌سازد دنبال نمی‌کند (ProxySelector

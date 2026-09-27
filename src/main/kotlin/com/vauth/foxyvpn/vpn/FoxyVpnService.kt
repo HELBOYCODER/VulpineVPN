@@ -19,6 +19,7 @@ import com.vauth.foxyvpn.data.model.ConnectionState
 import com.vauth.foxyvpn.data.model.ProxyCandidate
 import com.vauth.foxyvpn.data.model.RuntimeAuth
 import com.vauth.foxyvpn.platform.AppHolder
+import com.vauth.foxyvpn.vpn.http.LocalHttpProxyServer
 import com.vauth.foxyvpn.vpn.socks.LocalSocks5Server
 import com.vauth.foxyvpn.vpn.tun.SystemProxy
 import com.vauth.foxyvpn.vpn.tun.TunBackend
@@ -109,6 +110,7 @@ object FoxyVpnService {
     private val opMutex = Mutex()
 
     private var socksServer: LocalSocks5Server? = null
+    private var httpServer: LocalHttpProxyServer? = null
     private var upstreamSession: UpstreamSession? = null
     private var connectJob: Job? = null
     private var watchdogJob: Job? = null
@@ -124,9 +126,10 @@ object FoxyVpnService {
 
     private class SessionResources(
         val socksServer: LocalSocks5Server?,
+        val httpServer: LocalHttpProxyServer?,
         val upstreamSession: UpstreamSession?,
     ) {
-        val isEmpty: Boolean get() = socksServer == null && upstreamSession == null
+        val isEmpty: Boolean get() = socksServer == null && httpServer == null && upstreamSession == null
     }
 
     @Volatile
@@ -153,6 +156,37 @@ object FoxyVpnService {
 
     fun stop(context: android.content.Context) {
         requestDisconnect("requested by the user")
+    }
+
+    /**
+     * Applies the phone-sharing switch without waiting for the next dial, so a connected
+     * tunnel starts answering HTTP proxies the moment the user flips it on.
+     */
+    fun applyIosShare(enabled: Boolean) {
+        if (!enabled) {
+            val server = httpServer ?: return
+            httpServer = null
+            runCatching { server.stop() }
+                .onFailure { AppLogger.w(TAG, "error stopping the iOS/LAN HTTP share proxy", it) }
+            AppLogger.i(TAG, "iOS/LAN HTTP share proxy stopped")
+            return
+        }
+        if (httpServer != null || _state.value == ConnectionState.DISCONNECTED) return
+        val generation = connectionGeneration
+        val port = app().settingsStore.iosSharePort
+        val server = LocalHttpProxyServer("0.0.0.0", port) { upstreamSession }
+        if (runCatching { server.start() }.isFailure) {
+            runCatching { server.stop() }
+            AppLogger.w(TAG, "could not bind the iOS/LAN HTTP share proxy on port $port")
+            _lastError.value = "iOS share proxy could not start on port $port (already in use?)."
+            return
+        }
+        if (connectionGeneration != generation) {
+            runCatching { server.stop() }
+            return
+        }
+        httpServer = server
+        AppLogger.i(TAG, "iOS/LAN HTTP share proxy started on 0.0.0.0:$port")
     }
 
     private fun requestDisconnect(reason: String) {
@@ -441,6 +475,7 @@ object FoxyVpnService {
             }
             socks.start()
             socksServer = socks
+            if (settingsStore.iosShareEnabled) applyIosShare(true)
             ensureGenerationCurrent(myGeneration)
 
             suspend fun bringUpSystemTunnel(): Unit = when (trafficMode) {
@@ -802,8 +837,9 @@ object FoxyVpnService {
 
         tokenRenewalJob?.cancel()
         tokenRenewalJob = null
-        val detached = SessionResources(socksServer, upstreamSession)
+        val detached = SessionResources(socksServer, httpServer, upstreamSession)
         socksServer = null
+        httpServer = null
         upstreamSession = null
         return detached
     }
@@ -823,6 +859,7 @@ object FoxyVpnService {
             }
         }
         runCatching { resources.socksServer?.stop() }.onFailure { AppLogger.w(TAG, "error stopping local SOCKS5 server", it) }
+        runCatching { resources.httpServer?.stop() }.onFailure { AppLogger.w(TAG, "error stopping local HTTP proxy server", it) }
         runCatching { resources.upstreamSession?.close() }.onFailure { AppLogger.w(TAG, "error closing upstream session", it) }
     }
 
