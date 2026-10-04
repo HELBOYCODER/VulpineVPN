@@ -240,7 +240,7 @@ final class H2UpstreamSession: @unchecked Sendable {
 
             let tcp = NWProtocolTCP.Options()
             tcp.noDelay = true
-            tcp.keepalive = true
+            tcp.enableKeepalive = true
             tcp.connectionTimeout = Int(Self.connectTimeout)
             params.defaultProtocolStack.transportProtocol = tcp
 
@@ -370,7 +370,7 @@ final class H2UpstreamSession: @unchecked Sendable {
     private func ingest(_ data: Data) {
         connectionQueue.async { [weak self] in
             guard let self, !self.closed else { return }
-            self.noteInboundActivity()
+            self.noteStreamData()
             self.decoder.append(data)
             while let frame = self.decoder.nextFrame() {
                 self.handleFrame(frame)

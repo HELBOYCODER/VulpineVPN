@@ -309,7 +309,7 @@ public final class FxaAuthRepository: @unchecked Sendable {
         _ = nonceBytes.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, 6, $0.baseAddress!) }
         let nonce = nonceBytes.base64UrlEncodedString()
         guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return "" }
-        let query = comps.percentEncodedQuery
+        let query = comps.percentEncodedQuery ?? ""
         comps.query = nil
         comps.fragment = nil
         var path = comps.percentEncodedPath
@@ -339,7 +339,7 @@ func hmacSha256(key: Data, data: Data) -> [UInt8] {
     var result = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
     key.withUnsafeBytes { keyBytes in
         data.withUnsafeBytes { dataBytes in
-            _ = CCHmac(CCHmacAlg(kCCHmacAlgSHA256), keyBytes.baseAddress, key.count,
+            _ = CCHmac(kCCHmacAlgSHA256, keyBytes.baseAddress, key.count,
                        dataBytes.baseAddress, data.count, &result)
         }
     }

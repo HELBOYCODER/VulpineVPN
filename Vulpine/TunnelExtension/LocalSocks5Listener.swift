@@ -54,7 +54,7 @@ final class LocalSocks5Listener: @unchecked Sendable {
     func start() {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
-        params.requiredLocalEndpoint = NWEndpoint.hostPort(.ipv4(.loopback), .init(rawValue: port)!)
+        params.requiredLocalEndpoint = NWEndpoint.hostPort(host: .ipv4(.loopback), port: .init(rawValue: port)!)
         let listener = try? NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
         guard let listener else {
             logger.log(.error, Self.tag, "failed to bind SOCKS5 listener on 127.0.0.1:\(port)")

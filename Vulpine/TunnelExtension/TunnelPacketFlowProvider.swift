@@ -49,7 +49,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
 
     override func startTunnel(options: [String: NSObject]? = nil) async throws {
         let settings = try tunnelSettings()
-        setTunnelNetworkSettings(settings)
+        try await setTunnelNetworkSettings(settings)
 
         guard let config = makeRelayConfig(options: options) else {
             throw TunnelError.missingConfiguration
@@ -171,7 +171,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
 
     /// Handles a TCP flow captured by the packet tunnel (iOS 17+ flow API).
     /// Bridges the flow's read/write handles onto an h2 CONNECT stream.
-    override func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
+    func handleNewFlow(_ flow: NEAppProxyFlow) -> Bool {
         guard let tcpFlow = flow as? NEAppProxyTCPFlow else { return false }
         Task {
             await bridge(tcpFlow: tcpFlow)
@@ -180,24 +180,24 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     }
 
     private func bridge(tcpFlow: NEAppProxyTCPFlow) async {
-        guard let endpoint = tcpFlow.remoteEndpoint,
-              case let .hostPort(host, port) = endpoint else { return }
+        let endpoint = tcpFlow.remoteEndpoint
+        guard case let .hostPort(host, port) = endpoint else { return }
         let targetHost = String(describing: host)
         let targetPort = Int(port)
         let targetKey = "\(targetHost):\(targetPort)"
 
         if isKnownUnreachable(targetKey) {
             logger.log(.debug, "TunnelProvider", "refusing \(targetKey): the edge refused this destination moments ago")
-            tcpFlow.cancelWithError(NSError(domain: NSPOSIXErrorDomain, code: ECONNREFUSED))
+            tcpFlow.cancel()
             return
         }
 
         guard let session = await usableSession() else {
-            tcpFlow.cancelWithError(NSError(domain: NSPOSIXErrorDomain, code: ETIMEDOUT))
+            tcpFlow.cancel()
             return
         }
         if session === unauthenticatedSession {
-            tcpFlow.cancelWithError(NSError(domain: NSPOSIXErrorDomain, code: ECONNREFUSED))
+            tcpFlow.cancel()
             return
         }
 
@@ -208,7 +208,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
             }
         } catch {
             await handleOpenFailure(targetKey: targetKey, targetPort: targetPort, cause: error)
-            tcpFlow.cancelWithError(NSError(domain: NSPOSIXErrorDomain, code: ECONNREFUSED))
+            tcpFlow.cancel()
             return
         }
 
@@ -324,11 +324,11 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
 extension NEAppProxyTCPFlow {
     /// Reads available data; returns nil on flow end/error.
     func readData() async throws -> Data? {
-        try await withCheckedThrowingContinuation { cont in
-            read { data, error in
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
+            read(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { data, _, _, error in
                 if let error {
                     cont.resume(throwing: error)
-                } else if let data {
+                } else if let data, !data.isEmpty {
                     cont.resume(returning: data)
                 } else {
                     cont.resume(returning: nil)

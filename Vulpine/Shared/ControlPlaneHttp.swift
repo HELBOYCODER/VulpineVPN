@@ -38,7 +38,8 @@ public final class SimpleCookieJar: @unchecked Sendable {
 
     public func saveFromResponse(url: URL, headers: [AnyHashable: Any]) {
         guard let httpURL = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return }
-        let cookies = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
+        let headerFields = headers as? [String: String] ?? [:]
+        let cookies = HTTPCookie.cookies(withResponseHeaderFields: headerFields, for: url)
         lock.lock()
         for cookie in cookies {
             var bucket = byDomain[cookie.domain] ?? []
@@ -104,7 +105,7 @@ public enum ControlPlaneHttp {
 
     /// Builds a URLSession wired with the shared cookie jar.
     public static func makeSession() -> URLSession {
-        let config = URLSessionConfiguration.default
+        var config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeout
         config.timeoutIntervalForResource = timeout
         config.httpShouldSetCookies = false
@@ -126,16 +127,16 @@ final class CookieJarURLSessionDelegate: NSObject, URLSessionDataDelegate {
     init(jar: SimpleCookieJar = ControlPlaneHttp.cookieJar) {
         self.jar = jar
     }
-    override func urlSession(_ session: URLSession,
-                             task: URLSessionTask,
+    func urlSession(_ session: URLSession,
+                    task: URLSessionTask,
                              willPerformHTTPRedirection response: HTTPURLResponse,
                              newRequest request: URLRequest,
                              completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(request)
     }
 
-    override func urlSession(_ session: URLSession,
-                             dataTask: URLSessionDataTask,
+    func urlSession(_ session: URLSession,
+                    dataTask: URLSessionDataTask,
                              didReceive response: URLResponse,
                              completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
         if let http = response as? HTTPURLResponse, let url = dataTask.currentRequest?.url {

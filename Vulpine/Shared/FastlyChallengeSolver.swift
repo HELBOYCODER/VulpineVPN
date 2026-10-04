@@ -65,7 +65,7 @@ public final class FastlyChallengeSolver: @unchecked Sendable {
         let baseBytes = Array(base.utf8)
         for a in POW_ALPHABET {
             for b in POW_ALPHABET {
-                let suffix = [UInt8(String(a).utf8)] + [UInt8(String(b).utf8)]
+                let suffix = Array(String(a).utf8) + Array(String(b).utf8)
                 var hashInput = baseBytes
                 hashInput.append(contentsOf: suffix)
                 let digest = Data(SHA256.hash(data: Data(hashInput)))
@@ -236,8 +236,8 @@ public final class FastlyChallengeSolver: @unchecked Sendable {
 
         let script = try await fetchText(solver, url: "\(prefixUrl)/script.js?reload=true")
         var parsed = try parseChallengeInit(script: script)
-        var challenges = parsed["challenges"] as? [JSONDict] ?? []
-        var token = parsed["token"] as? String ?? ""
+        var challenges = parsed.0["challenges"] as? [JSONDict] ?? []
+        var token = parsed.1
 
         for _ in 0..<MAX_POST_BACK_ROUNDS {
             var answers: [JSONDict] = []

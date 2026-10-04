@@ -89,7 +89,13 @@ extension EnvironmentValues {
 struct VulpineTheme: ViewModifier {
     let mode: ThemeMode
     func body(content: Content) -> some View {
-        content
-            .environment(\.colorScheme, mode == .system ? \.colorScheme : (mode == .dark ? .dark : .light))
+        let scheme: ColorScheme?
+        switch mode {
+        case .system: scheme = nil
+        case .dark: scheme = .dark
+        case .light: scheme = .light
+        }
+        return content
+            .environment(\.colorScheme, scheme)
     }
 }

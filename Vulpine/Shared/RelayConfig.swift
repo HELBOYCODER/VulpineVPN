@@ -3,6 +3,7 @@
 // vpn/upstream package (Kotlin). iOS / Network.framework target.
 
 import Foundation
+import os
 
 /// Endpoint list for the edge, mirroring the Kotlin server list `hostname:port`.
 public struct EdgeEndpoint: Equatable, Sendable {
@@ -87,12 +88,12 @@ public struct OSLogRelayLogger: RelayLogging {
     public init() {}
     public func log(_ level: RelayLogLevel, _ tag: String, _ message: String) {
         #if canImport(os)
-        let os = Logger(subsystem: "com.vulpine.tunnel", category: tag)
+        let relayLog = Logger(subsystem: "com.vulpine.tunnel", category: tag)
         switch level {
-        case .debug: os.debug("\(message, privacy: .public)")
-        case .info: os.info("\(message, privacy: .public)")
-        case .warn: os.warning("\(message, privacy: .public)")
-        case .error: os.error("\(message, privacy: .public)")
+        case .debug: relayLog.debug("\(message, privacy: .public)")
+        case .info: relayLog.info("\(message, privacy: .public)")
+        case .warn: relayLog.warning("\(message, privacy: .public)")
+        case .error: relayLog.error("\(message, privacy: .public)")
         }
         #else
         print("[\(tag)] \(level): \(message)")
