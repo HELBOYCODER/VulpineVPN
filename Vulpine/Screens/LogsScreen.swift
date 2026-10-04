@@ -23,15 +23,23 @@ struct LogsScreen: View {
         }
         .navigationTitle("Logs")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(content: { () -> ToolbarItemGroup<TupleView<(Button<Image>, Button<Image>)>> in
+        .modifier(LogsToolbarModifier())
+    }
+}
+
+
+/// iOS 16-safe toolbar for LogsScreen (SDK toolbar(content:) overloads are ambiguous here).
+struct LogsToolbarModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content.toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
-                    UIPasteboard.general.string = state.exportLogs()
+                    UIPasteboard.general.string = AppState.shared.exportLogs()
                 } label: { Image(systemName: "doc.on.doc") }
                 Button(role: .destructive) {
-                    state.logs.removeAll()
+                    AppState.shared.logs.removeAll()
                 } label: { Image(systemName: "trash") }
             }
-        })
+        }
     }
 }
