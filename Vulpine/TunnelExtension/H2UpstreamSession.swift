@@ -245,8 +245,8 @@ final class H2UpstreamSession: @unchecked Sendable {
             params.defaultProtocolStack.transportProtocol = tcp
 
             let endpoint = NWEndpoint.hostPort(
-                NWEndpoint.Host(config.connectHost),
-                NWEndpoint.Port(rawValue: UInt16(clamping: config.tlsPort))!
+                host: NWEndpoint.Host(config.connectHost),
+                port: NWEndpoint.Port(rawValue: UInt16(clamping: config.tlsPort))!
             )
             let conn = NWConnection(to: endpoint, using: params)
             connection = conn
