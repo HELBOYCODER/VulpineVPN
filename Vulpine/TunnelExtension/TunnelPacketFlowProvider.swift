@@ -180,7 +180,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     }
 
     private func bridge(tcpFlow: NEAppProxyTCPFlow) async {
-        let endpoint = tcpFlow.remoteEndpoint
+        let endpoint: NWEndpoint = tcpFlow.remoteEndpoint
         guard case let .hostPort(host, port) = endpoint else { return }
         let targetHost = String(describing: host)
         let targetPort = Int(port.rawValue)
