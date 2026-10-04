@@ -7,7 +7,10 @@ struct LogsScreen: View {
     var body: some View {
         Group {
             if state.logs.isEmpty {
-                ContentUnavailableView("No log entries yet", systemImage: "doc.text")
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.text").font(.largeTitle).foregroundStyle(.secondary)
+                    Text("No log entries yet").foregroundStyle(.secondary)
+                }
             } else {
                 List(state.logs) { entry in
                     VStack(alignment: .leading, spacing: 2) {
