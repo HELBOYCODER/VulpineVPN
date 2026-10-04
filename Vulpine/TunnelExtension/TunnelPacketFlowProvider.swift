@@ -180,7 +180,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     }
 
     private func bridge(tcpFlow: NEAppProxyTCPFlow) async {
-        let endpoint = tcpFlow.remoteEndpoint
+        let endpoint = tcpFlow.remoteFlowEndpoint
         guard case let .hostPort(host, port) = endpoint else { return }
         let targetHost = String(describing: host)
         let targetPort = Int(port)
@@ -188,16 +188,16 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
 
         if isKnownUnreachable(targetKey) {
             logger.log(.debug, "TunnelProvider", "refusing \(targetKey): the edge refused this destination moments ago")
-            tcpFlow.cancel()
+            tcpFlow.cancelFlow()
             return
         }
 
         guard let session = await usableSession() else {
-            tcpFlow.cancel()
+            tcpFlow.cancelFlow()
             return
         }
         if session === unauthenticatedSession {
-            tcpFlow.cancel()
+            tcpFlow.cancelFlow()
             return
         }
 
@@ -208,7 +208,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
             }
         } catch {
             await handleOpenFailure(targetKey: targetKey, targetPort: targetPort, cause: error)
-            tcpFlow.cancel()
+            tcpFlow.cancelFlow()
             return
         }
 
@@ -231,7 +231,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
             while true {
                 guard let data = try await tcpFlow.readData() else { break }
                 if data.isEmpty { break }
-                var payload = data
+                let payload = data
                 try payload.withUnsafeBytes { raw in
                     guard let base = raw.bindMemory(to: UInt8.self).baseAddress else { return }
                     try tunneled.write(base, count: payload.count)
@@ -322,16 +322,20 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
 // MARK: - Small async helpers
 
 extension NEAppProxyTCPFlow {
+    /// Tears down both directions of the flow (no `cancelWithError` on iOS).
+    func cancelFlow() {
+        closeReadWithError(nil)
+        closeWriteWithError(nil)
+    }
+
     /// Reads available data; returns nil on flow end/error.
     func readData() async throws -> Data? {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data?, Error>) in
-            read(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { data, _, _, error in
+            self.readData { data, error in
                 if let error {
                     cont.resume(throwing: error)
-                } else if let data, !data.isEmpty {
-                    cont.resume(returning: data)
                 } else {
-                    cont.resume(returning: nil)
+                    cont.resume(returning: data)
                 }
             }
         }
