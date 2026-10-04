@@ -24,12 +24,10 @@ struct LogsScreen: View {
         .navigationTitle("Logs")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     UIPasteboard.general.string = state.exportLogs()
                 } label: { Image(systemName: "doc.on.doc") }
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(role: .destructive) {
                     state.logs.removeAll()
                 } label: { Image(systemName: "trash") }

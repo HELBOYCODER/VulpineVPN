@@ -96,8 +96,8 @@ private extension View {
 
 
 /// iOS 16-safe haptic feedback (sensoryFeedback requires iOS 17).
-struct ImpactFeedbackModifier: ViewModifier {
-    let trigger: some Equatable
+struct ImpactFeedbackModifier<T: Equatable>: ViewModifier {
+    let trigger: T
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
             content.sensoryFeedback(.impact, trigger: trigger)
