@@ -22,7 +22,7 @@ struct HomeScreen: View {
                         .animation(.spring(response: 0.3), value: pressPulse)
                 }
             }
-            .sensoryFeedback(.impact, trigger: state.connectionState)
+            .modifier(ImpactFeedbackModifier(trigger: state.connectionState))
 
             Text(statusLabel)
                 .font(.title3)
@@ -91,5 +91,18 @@ private extension View {
         }
         .padding(12)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+
+/// iOS 16-safe haptic feedback (sensoryFeedback requires iOS 17).
+struct ImpactFeedbackModifier: ViewModifier {
+    let trigger: some Equatable
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.sensoryFeedback(.impact, trigger: trigger)
+        } else {
+            content
+        }
     }
 }

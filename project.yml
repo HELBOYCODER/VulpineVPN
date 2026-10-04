@@ -18,6 +18,8 @@ targets:
     deploymentTarget: "16.0"
     sources:
       - path: Vulpine
+        excludes:
+          - "TunnelExtensionTests"
     info:
       path: Vulpine/Info.plist
       properties:
