@@ -339,7 +339,7 @@ func hmacSha256(key: Data, data: Data) -> [UInt8] {
     var result = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
     key.withUnsafeBytes { keyBytes in
         data.withUnsafeBytes { dataBytes in
-            _ = CCHmac(kCCHmacAlgSHA256, keyBytes.baseAddress, key.count,
+            _ = CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA256), keyBytes.baseAddress, key.count,
                        dataBytes.baseAddress, data.count, &result)
         }
     }
