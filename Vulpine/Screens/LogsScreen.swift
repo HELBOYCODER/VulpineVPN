@@ -23,7 +23,7 @@ struct LogsScreen: View {
         }
         .navigationTitle("Logs")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(content: {
+        .toolbar(content: { () -> some ToolbarContent in
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     UIPasteboard.general.string = state.exportLogs()
