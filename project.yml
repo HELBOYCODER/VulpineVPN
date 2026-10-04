@@ -46,6 +46,11 @@ targets:
       - path: Vulpine/Shared
     info:
       path: VulpineTunnel/Info.plist
+      properties:
+        CFBundleDisplayName: VulpineTunnel
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).TunnelPacketFlowProvider"
     entitlements:
       path: VulpineTunnel/VulpineTunnel.entitlements
     settings:
