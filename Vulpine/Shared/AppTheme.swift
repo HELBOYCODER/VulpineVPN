@@ -96,6 +96,6 @@ struct VulpineTheme: ViewModifier {
         case .light: scheme = .light
         }
         return content
-            .environment(\.colorScheme, scheme)
+            .environment(\.colorScheme, scheme ?? .light)
     }
 }
