@@ -23,7 +23,7 @@ struct LogsScreen: View {
         }
         .navigationTitle("Logs")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
+        .toolbar(content: {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     UIPasteboard.general.string = state.exportLogs()
@@ -32,6 +32,6 @@ struct LogsScreen: View {
                     state.logs.removeAll()
                 } label: { Image(systemName: "trash") }
             }
-        }
+        })
     }
 }
