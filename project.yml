@@ -1,0 +1,62 @@
+name: Vulpine
+options:
+  bundleIdPrefix: ua.entaytion
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    CODE_SIGNING_ALLOWED: "NO"
+    CODE_SIGN_IDENTITY: ""
+targets:
+  Vulpine:
+    type: application
+    platform: iOS
+    bundleIdPrefix: ua.entaytion.vulpine
+    deploymentTarget: "16.0"
+    sources:
+      - path: Vulpine
+    info:
+      path: Vulpine/Info.plist
+      properties:
+        CFBundleDisplayName: Vulpine VPN
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+    entitlements:
+      path: Vulpine/Vulpine.entitlements
+    dependencies:
+      - target: VulpineTunnel
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ua.entaytion.vulpine
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: "YES"
+  VulpineTunnel:
+    type: app-extension
+    platform: iOS
+    bundleIdPrefix: ua.entaytion.vulpine.tunnel
+    deploymentTarget: "16.0"
+    sources:
+      - path: VulpineTunnel
+      - path: Vulpine/TunnelExtension
+      - path: Vulpine/Shared
+    entitlements:
+      path: VulpineTunnel/VulpineTunnel.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ua.entaytion.vulpine.tunnel
+        PRODUCT_NAME: VulpineTunnel
+        INFOPLIST_KEY_CFBundleDisplayName: VulpineTunnel
+        INFOPLIST_KEY_NSExtension:
+          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).TunnelPacketFlowProvider"
+schemes:
+  Vulpine:
+    build:
+      targets:
+        Vulpine: all
+        VulpineTunnel: all
+    archive:
+      config: Release

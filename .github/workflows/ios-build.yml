@@ -1,0 +1,70 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_15.4.app || true
+          xcodebuild -version
+
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -project Vulpine.xcodeproj \
+            -scheme Vulpine \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Vulpine.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
+
+      - name: Export unsigned IPA
+        run: |
+          mkdir -p build/export
+          cat > build/exportOptions.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>development</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>stripSwiftSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/Vulpine.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/exportOptions.plist \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" || true
+          IPA=$(find build/export -name '*.ipa' | head -1)
+          if [ -z "$IPA" ]; then
+            echo "exportArchive failed; falling back to Finder-style payload IPA"
+            mkdir -p build/Payload
+            cp -R build/Vulpine.xcarchive/Products/Applications/*.app build/Payload/
+            cd build && zip -qry Vulpine.ipa Payload && cd ..
+            IPA=build/Vulpine.ipa
+          fi
+          echo "IPA=$IPA" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vulpine-unsigned-ipa
+          path: ${{ env.IPA }}
+          if-no-files-found: error
