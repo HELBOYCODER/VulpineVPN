@@ -44,16 +44,14 @@ targets:
       - path: VulpineTunnel
       - path: Vulpine/TunnelExtension
       - path: Vulpine/Shared
+    info:
+      path: VulpineTunnel/Info.plist
     entitlements:
       path: VulpineTunnel/VulpineTunnel.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ua.entaytion.vulpine.tunnel
-        PRODUCT_NAME: VulpineTunnel
-        INFOPLIST_KEY_CFBundleDisplayName: VulpineTunnel
-        INFOPLIST_KEY_NSExtension:
-          NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
-          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).TunnelPacketFlowProvider"
+        PRODUCT_NAME: VulpineTunnel"
 schemes:
   Vulpine:
     build:
