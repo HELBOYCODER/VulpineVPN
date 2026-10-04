@@ -28,7 +28,7 @@ struct AccountScreen: View {
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button { refresh() } label: { Image(systemName: "arrow.clockwise") }
             }
         }
