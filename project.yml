@@ -51,7 +51,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ua.entaytion.vulpine.tunnel
-        PRODUCT_NAME: VulpineTunnel"
+        PRODUCT_NAME: VulpineTunnel
 schemes:
   Vulpine:
     build:
