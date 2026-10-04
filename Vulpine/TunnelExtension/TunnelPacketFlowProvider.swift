@@ -180,8 +180,13 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     }
 
     private func bridge(tcpFlow: NEAppProxyTCPFlow) async {
-        let endpoint: NetworkExtension.NWEndpoint = tcpFlow.remoteEndpoint
-        guard case let .hostPort(host, port) = endpoint else { return }
+        let remote = tcpFlow.remoteEndpoint
+        guard let desc = remote as? CustomStringConvertible, desc.description.contains(":") else { return }
+        // Parse "host:port" from the endpoint description.
+        let parts = desc.description.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count >= 2, let p = UInt16(parts.last!) else { return }
+        let host = parts.dropLast().joined(separator: ":")
+        let port = NWEndpoint.Port(rawValue: p)!
         let targetHost = String(describing: host)
         let targetPort = Int(port.rawValue)
         let targetKey = "\(targetHost):\(targetPort)"
