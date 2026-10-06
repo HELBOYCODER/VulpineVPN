@@ -16,37 +16,31 @@ enum ServerPinger {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         let connection = NWConnection(to: endpoint, using: params)
-        defer { connection.cancel() }
-
         let start = Date()
-        return await withTaskGroup(of: Int?.self) { group in
-            group.addTask {
-                await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-                    var finished = false
-                    connection.stateUpdateHandler = { state in
-                        guard !finished else { return }
-                        switch state {
-                        case .ready:
-                            finished = true
-                            cont.resume()
-                        case .failed, .cancelled:
-                            finished = true
-                            cont.resume()
-                        default:
-                            break
-                        }
-                    }
-                    connection.start(queue: DispatchQueue(label: "com.vulpine.ping"))
+
+        let connected: Bool = await withCheckedContinuation { cont in
+            let lock = NSLock()
+            var resumed = false
+            func finish(_ ok: Bool) {
+                lock.lock()
+                let alreadyDone = resumed
+                resumed = true
+                lock.unlock()
+                if !alreadyDone { cont.resume(returning: ok) }
+            }
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready: finish(true)
+                case .failed, .cancelled: finish(false)
+                default: break
                 }
             }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                return nil as Int?
-            }
-            let first = await group.next() ?? nil as Int?
-            group.cancelAll()
-            guard first != nil else { return nil }
-            return Int(Date().timeIntervalSince(start) * 1000)
+            connection.start(queue: DispatchQueue(label: "com.vulpine.ping"))
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { finish(false) }
         }
+
+        connection.cancel()
+        guard connected else { return nil }
+        return Int(Date().timeIntervalSince(start) * 1000)
     }
 }
