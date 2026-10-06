@@ -53,6 +53,8 @@ targets:
       path: VulpineTunnel/Info.plist
       properties:
         CFBundleDisplayName: VulpineTunnel
+        CFBundleShortVersionString: "1.2.0"
+        CFBundleVersion: "3"
         NSExtension:
           NSExtensionPointIdentifier: com.apple.networkextension.packet-tunnel
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).TunnelPacketFlowProvider"
