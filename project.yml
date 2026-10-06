@@ -24,6 +24,9 @@ targets:
       path: Vulpine/Info.plist
       properties:
         CFBundleDisplayName: Vulpine VPN
+        CFBundleShortVersionString: "1.1.0"
+        CFBundleVersion: "2"
+        MinimumOSVersion: "16.0"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
     entitlements:
