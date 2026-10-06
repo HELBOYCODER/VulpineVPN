@@ -52,6 +52,7 @@ jobs:
             echo "exportArchive failed; falling back to Finder-style payload IPA"
             mkdir -p build/Payload
             cp -R build/Vulpine.xcarchive/Products/Applications/*.app build/Payload/
+            echo "=== app contents ==="; find build/Payload -type f | sed 's/^/APPFILE: /'
             cd build && zip -qry Vulpine.ipa Payload && cd ..
             IPA=build/Vulpine.ipa
           fi
