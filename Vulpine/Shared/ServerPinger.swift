@@ -41,9 +41,9 @@ enum ServerPinger {
             }
             group.addTask {
                 try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                return nil
+                return nil as Int?
             }
-            let first = await group.next() ?? nil
+            let first = await group.next() ?? nil as Int?
             group.cancelAll()
             guard first != nil else { return nil }
             return Int(Date().timeIntervalSince(start) * 1000)

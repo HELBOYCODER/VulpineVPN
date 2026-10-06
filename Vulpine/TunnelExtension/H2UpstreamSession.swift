@@ -245,7 +245,7 @@ final class H2UpstreamSession: @unchecked Sendable {
             params.defaultProtocolStack.transportProtocol = tcp
 
             // Optional upstream proxy chaining (SOCKS5/HTTP CONNECT first hop).
-            var params = params
+            var dialParams = params
             var endpoint: NWEndpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(config.connectHost),
                 port: NWEndpoint.Port(rawValue: UInt16(clamping: config.tlsPort))!
@@ -254,11 +254,11 @@ final class H2UpstreamSession: @unchecked Sendable {
                 logger.log(.info, Self.tag,
                            "chaining through upstream proxy \(proxy.scheme) \(proxy.host):\(proxy.port)")
                 if let proxyEndpoint = Self.applyProxy(proxy, targetHost: config.connectHost,
-                                                       targetPort: config.tlsPort, to: params) {
+                                                       targetPort: config.tlsPort, to: dialParams) {
                     endpoint = proxyEndpoint
                 }
             }
-            let conn = NWConnection(to: endpoint, using: params)
+            let conn = NWConnection(to: endpoint, using: dialParams)
             connection = conn
 
             var finished = false
@@ -326,7 +326,7 @@ final class H2UpstreamSession: @unchecked Sendable {
     /// Parses "socks5://host:port", "http://host:port", or "host:port" (SOCKS5).
     static func parseProxy(_ value: String?) -> ProxySpec? {
         guard let value, !value.isEmpty else { return nil }
-        var scheme: Scheme = .socks5
+        var scheme: ProxySpec.Scheme = .socks5
         var rest = value
         if let idx = value.range(of: "://") {
             let s = String(value[..<idx.lowerBound]).lowercased()
