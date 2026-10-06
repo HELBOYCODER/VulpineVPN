@@ -38,13 +38,23 @@ final class LocalSocks5Listener: @unchecked Sendable {
     private let refusalLock = NSLock()
     private var refusedTargets: [String: RefusalRecord] = [:]
     private let health = UpstreamHealthTracker()
+    private let configLock = NSLock()
+    private var relayConfigStore: RelayConfig?
+
+    /// The dial config for new upstream sessions (upstream proxy chaining).
+    var relayConfig: RelayConfig? {
+        get { configLock.lock(); defer { configLock.unlock() }; return relayConfigStore }
+        set { configLock.lock(); relayConfigStore = newValue; configLock.unlock() }
+    }
 
     init(port: UInt16,
+         relayConfig: RelayConfig? = nil,
          sessionProvider: @escaping @Sendable () -> H2UpstreamSession?,
          onSessionUnhealthy: @escaping @Sendable () -> Void,
          onSessionUnauthenticated: @escaping @Sendable (H2UpstreamSession) -> Void,
          logger: RelayLogging) {
         self.port = port
+        self.relayConfigStore = relayConfig
         self.sessionProvider = sessionProvider
         self.onSessionUnhealthy = onSessionUnhealthy
         self.onSessionUnauthenticated = onSessionUnauthenticated

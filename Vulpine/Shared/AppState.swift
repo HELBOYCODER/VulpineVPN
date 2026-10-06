@@ -34,9 +34,26 @@ final class AppState: ObservableObject {
     @Published var countries: [VpnCountryUI] = []
     @Published var logs: [LogEntry] = []
     @Published var themeMode: ThemeMode
+    @Published var exitIP: String?
+    @Published var dohEnabled: Bool {
+        didSet { UserDefaults.standard.set(dohEnabled, forKey: "dohEnabled") }
+    }
+    @Published var upstreamProxyEnabled: Bool {
+        didSet { UserDefaults.standard.set(upstreamProxyEnabled, forKey: "upstreamProxyEnabled") }
+    }
+    @Published var upstreamProxyHost: String {
+        didSet { UserDefaults.standard.set(upstreamProxyHost, forKey: "upstreamProxyHost") }
+    }
+    @Published var upstreamProxyPort: String {
+        didSet { UserDefaults.standard.set(upstreamProxyPort, forKey: "upstreamProxyPort") }
+    }
 
     init() {
         themeMode = ThemeMode(rawValue: UserDefaults.standard.string(forKey: "themeMode") ?? "") ?? .system
+        dohEnabled = UserDefaults.standard.bool(forKey: "dohEnabled")
+        upstreamProxyEnabled = UserDefaults.standard.bool(forKey: "upstreamProxyEnabled")
+        upstreamProxyHost = UserDefaults.standard.string(forKey: "upstreamProxyHost") ?? ""
+        upstreamProxyPort = UserDefaults.standard.string(forKey: "upstreamProxyPort") ?? ""
     }
 
     func setTheme(_ mode: ThemeMode) {

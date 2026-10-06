@@ -35,6 +35,11 @@ struct HomeScreen: View {
             }
             .padding(.horizontal)
 
+            if state.connectionState == .connected {
+                statCard(value: exitIPLabel, label: "Exit IP")
+                    .padding(.horizontal, 24)
+            }
+
             NavigationLink { ServerListScreen() } label: {
                 Label("Choose location", systemImage: "globe")
                     .frame(maxWidth: .infinity)
@@ -72,12 +77,25 @@ struct HomeScreen: View {
         return "\(ping) ms"
     }
 
+    private var exitIPLabel: String {
+        if state.connectionState == .connected, let ip = state.exitIP { return ip }
+        return "—"
+    }
+
     private func toggle() {
         pressPulse.toggle()
         switch state.connectionState {
-        case .disconnected: state.connectionState = .connecting
+        case .disconnected:
+            state.connectionState = .connecting
+            Task {
+                if let ip = await ExitChecker.fetchExitIP() {
+                    await MainActor.run { state.exitIP = ip }
+                }
+            }
         case .connecting: state.connectionState = .disconnected
-        case .connected: state.connectionState = .disconnected
+        case .connected:
+            state.connectionState = .disconnected
+            state.exitIP = nil
         }
         state.log("INFO", "Power button tapped → \(state.connectionState)")
     }

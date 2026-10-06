@@ -6,7 +6,7 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    MARKETING_VERSION: 1.1.0
+    MARKETING_VERSION: 1.2.0
     CURRENT_PROJECT_VERSION: 1
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGN_IDENTITY: ""
@@ -24,8 +24,8 @@ targets:
       path: Vulpine/Info.plist
       properties:
         CFBundleDisplayName: Vulpine VPN
-        CFBundleShortVersionString: "1.1.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "1.2.0"
+        CFBundleVersion: "3"
         MinimumOSVersion: "16.0"
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

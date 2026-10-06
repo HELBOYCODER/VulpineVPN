@@ -244,10 +244,20 @@ final class H2UpstreamSession: @unchecked Sendable {
             tcp.connectionTimeout = Int(Self.connectTimeout)
             params.defaultProtocolStack.transportProtocol = tcp
 
-            let endpoint = NWEndpoint.hostPort(
+            // Optional upstream proxy chaining (SOCKS5/HTTP CONNECT first hop).
+            var params = params
+            var endpoint: NWEndpoint = NWEndpoint.hostPort(
                 host: NWEndpoint.Host(config.connectHost),
                 port: NWEndpoint.Port(rawValue: UInt16(clamping: config.tlsPort))!
             )
+            if let proxy = Self.parseProxy(config.upstreamProxy) {
+                logger.log(.info, Self.tag,
+                           "chaining through upstream proxy \(proxy.scheme) \(proxy.host):\(proxy.port)")
+                if let proxyEndpoint = Self.applyProxy(proxy, targetHost: config.connectHost,
+                                                       targetPort: config.tlsPort, to: params) {
+                    endpoint = proxyEndpoint
+                }
+            }
             let conn = NWConnection(to: endpoint, using: params)
             connection = conn
 
@@ -302,6 +312,47 @@ final class H2UpstreamSession: @unchecked Sendable {
         lastStreamDataAt = Date()
         lock.unlock()
         startKeepalive()
+    }
+
+    // MARK: Upstream proxy chaining
+
+    struct ProxySpec {
+        enum Scheme: String { case socks5, http }
+        var scheme: Scheme
+        var host: String
+        var port: Int
+    }
+
+    /// Parses "socks5://host:port", "http://host:port", or "host:port" (SOCKS5).
+    static func parseProxy(_ value: String?) -> ProxySpec? {
+        guard let value, !value.isEmpty else { return nil }
+        var scheme: Scheme = .socks5
+        var rest = value
+        if let idx = value.range(of: "://") {
+            let s = String(value[..<idx.lowerBound]).lowercased()
+            rest = String(value[idx.upperBound...])
+            if s == "http" { scheme = .http }
+            else if s == "socks" || s == "socks5" { scheme = .socks5 }
+            else { return nil }
+        }
+        let parts = rest.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2, let port = Int(parts[1]), port > 0, port <= 65535,
+              !parts[0].isEmpty else { return nil }
+        return ProxySpec(scheme: scheme, host: String(parts[0]), port: port)
+    }
+
+    /// Configures `base` to chain through an upstream proxy: a custom framer
+    /// performs the SOCKS5/HTTP CONNECT handshake below TLS. Returns the proxy
+    /// endpoint the connection should dial, or nil when no proxy is configured.
+    static func applyProxy(_ proxy: ProxySpec?, targetHost: String, targetPort: Int,
+                           to base: NWParameters) -> NWEndpoint? {
+        guard let proxy else { return nil }
+        let framerOptions = NWProtocolFramer.Options(definition: ProxyConnectProtocol.definition)
+        base.defaultProtocolStack.applicationProtocols.insert(framerOptions, at: 0)
+        ProxyChainRequest.pending = ProxyChainRequest.Request(
+            scheme: proxy.scheme, targetHost: targetHost, targetPort: targetPort)
+        return NWEndpoint.hostPort(host: NWEndpoint.Host(proxy.host),
+                                   port: NWEndpoint.Port(rawValue: UInt16(clamping: proxy.port))!)
     }
 
     private func createTLSOptions() -> NWProtocolTLS.Options? {

@@ -83,8 +83,11 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
         }
         let edgeAddress = options?["edgeAddress"] as? String
         let doh = (options?["dohEndpointAddresses"] as? [String]) ?? []
+        let dohEnabled = (options?["dohEnabled"] as? NSNumber)?.boolValue ?? true
+        let upstreamProxy = options?["upstreamProxy"] as? String
         return RelayConfig(tlsHost: host, tlsPort: port, edgeAddress: edgeAddress,
-                           bearerToken: token, dohEndpointAddresses: doh)
+                           bearerToken: token, dohEndpointAddresses: doh,
+                           dohEnabled: dohEnabled, upstreamProxy: upstreamProxy)
     }
 
     private func tunnelSettings() throws -> NEPacketTunnelNetworkSettings {
@@ -105,9 +108,11 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     // MARK: Session management
 
     private func dialSession(config: RelayConfig) async {
-        // Resolve the edge address over DoH when a custom edge address is set.
+        // Resolve the edge address over DoH when enabled and a custom edge
+        // address is set (DoH toggle from Settings).
         var edgeAddress = config.edgeAddress
         if let candidate = edgeAddress, !candidate.isEmpty, !isIPLiteral(candidate) {
+            if config.dohEnabled {
             let resolved = await EdgeAddressResolver.resolve(
                 hostname: candidate, endpointAddresses: config.dohEndpointAddresses)
             if let resolved {
@@ -118,11 +123,17 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
                 logger.log(.info, "TunnelProvider",
                            "could not resolve \(candidate) over DoH; dialling by hostname")
             }
+            } else {
+                logger.log(.info, "TunnelProvider",
+                           "DoH disabled in settings; dialling \(candidate) by hostname")
+            }
         }
 
         let dial = RelayConfig(tlsHost: config.tlsHost, tlsPort: config.tlsPort,
                                edgeAddress: edgeAddress, bearerToken: config.bearerToken,
-                               dohEndpointAddresses: config.dohEndpointAddresses)
+                               dohEndpointAddresses: config.dohEndpointAddresses,
+                               dohEnabled: config.dohEnabled,
+                               upstreamProxy: config.upstreamProxy)
         let session = H2UpstreamSession(config: dial, logger: logger)
         self.session = session
         do {
@@ -152,6 +163,7 @@ final class TunnelPacketFlowProvider: NEPacketTunnelProvider {
     private func startSocksListener(config: RelayConfig) {
         let listener = LocalSocks5Listener(
             port: 1080,
+            relayConfig: config,
             sessionProvider: { [weak self] in
                 guard let self, let session = self.session, session.isConnected else { return nil }
                 return session

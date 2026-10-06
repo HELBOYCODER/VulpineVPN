@@ -14,13 +14,9 @@ let dohProviders = [
 struct SettingsScreen: View {
     @EnvironmentObject var state: AppState
     @State private var verifyExitLocation = true
-    @State private var encryptedDns = false
-    @State private var selectedDoh: DohProvider = dohProviders[0]
-    @State private var showDohPicker = false
     @State private var customDnsEnabled = false
     @State private var customDnsServer = ""
     @State private var proxyOnlyMode = false
-    @State private var upstreamProxyEnabled = false
     @State private var customEdgeAddress = ""
     @State private var showThemePicker = false
 
@@ -41,13 +37,13 @@ struct SettingsScreen: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Toggle(isOn: $encryptedDns) {
+                Toggle(isOn: $state.dohEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Encrypted DNS")
-                        Text(selectedDoh.label).font(.subheadline).foregroundStyle(.secondary)
+                        Text("Encrypted DNS (DoH)")
+                        Text("Resolve the VPN edge address over DNS over HTTPS using the relay's DoH endpoints")
+                            .font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                .onChange(of: encryptedDns) { if $0 { showDohPicker = true } }
                 Toggle(isOn: $customDnsEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Use a custom DNS server")
@@ -69,12 +65,21 @@ struct SettingsScreen: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Toggle(isOn: $upstreamProxyEnabled) {
+                Toggle(isOn: $state.upstreamProxyEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Chain through upstream proxy")
                         Text("Connect to the VPN server through another proxy first")
                             .font(.subheadline).foregroundStyle(.secondary)
                     }
+                }
+                if state.upstreamProxyEnabled {
+                    TextField("Proxy host", text: $state.upstreamProxyHost)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                    TextField("Proxy port", text: $state.upstreamProxyPort)
+                        .keyboardType(.numberPad)
+                    Text("SOCKS5 or HTTP proxy, e.g. socks5://proxy.example.com:1080 (enter host and port separately)")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 HStack {
                     Text("Custom edge address"); Spacer()
@@ -96,7 +101,7 @@ struct SettingsScreen: View {
                         Text("Subscription status and data usage").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                HStack { Text("Version"); Spacer(); Text("1.0.0").foregroundStyle(.secondary) }
+                HStack { Text("Version"); Spacer(); Text("1.2.0").foregroundStyle(.secondary) }
             } header: { Text("About") }
 
             Section {
@@ -109,35 +114,10 @@ struct SettingsScreen: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showDohPicker) { DohPickerSheet(selected: $selectedDoh) }
         .confirmationDialog("Theme", isPresented: $showThemePicker, titleVisibility: .visible) {
             ForEach(ThemeMode.allCases) { mode in
                 Button(mode.label) { state.setTheme(mode) }
             }
-        }
-    }
-}
-
-struct DohPickerSheet: View {
-    @Binding var selected: DohProvider
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List(dohProviders) { provider in
-                Button {
-                    selected = provider
-                    dismiss()
-                } label: {
-                    HStack {
-                        Text(provider.label)
-                        Spacer()
-                        if provider == selected { Image(systemName: "checkmark") }
-                    }
-                }
-            }
-            .navigationTitle("Encrypted DNS")
-            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }

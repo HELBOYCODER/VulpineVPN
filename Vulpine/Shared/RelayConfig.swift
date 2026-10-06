@@ -28,14 +28,23 @@ public struct RelayConfig: Sendable {
     public var bearerToken: String
     /// Addresses of DoH endpoints (IP literals) used to resolve `edgeAddress` hostnames.
     public var dohEndpointAddresses: [String]
+    /// When false, `edgeAddress` hostnames are resolved by the system resolver
+    /// instead of over DoH (Settings "Encrypted DNS" toggle).
+    public var dohEnabled: Bool
+    /// Optional SOCKS5/HTTP upstream proxy chained before the edge
+    /// ("host:port" string; nil/empty = direct).
+    public var upstreamProxy: String?
 
     public init(tlsHost: String, tlsPort: Int, edgeAddress: String? = nil,
-                bearerToken: String, dohEndpointAddresses: [String] = []) {
+                bearerToken: String, dohEndpointAddresses: [String] = [],
+                dohEnabled: Bool = true, upstreamProxy: String? = nil) {
         self.tlsHost = tlsHost
         self.tlsPort = tlsPort
         self.edgeAddress = edgeAddress
         self.bearerToken = bearerToken
         self.dohEndpointAddresses = dohEndpointAddresses
+        self.dohEnabled = dohEnabled
+        self.upstreamProxy = upstreamProxy
     }
 
     /// The address actually dialed on TCP (custom edge address if configured).
